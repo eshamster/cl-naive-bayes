@@ -6,27 +6,27 @@
                 :it))
 (in-package :cl-naive-bayes)
 
-(defstruct word-category-count
-  word
-  category
-  (count 0))
-
+; hash = category -> word -> count
 (defstruct learned-store
-  lst
+  (hash (make-hash-table :test #'equal))
   (num-word-kind 0))
 
 (defun count-word-in-category (store word category)
-  (aif (find-if #'(lambda (elem)
-                    (and (equal (word-category-count-word elem) word)
-                         (equal (word-category-count-category elem) category)))
-                (learned-store-lst store))
-       (word-category-count-count it)
+  (aif (gethash category (learned-store-hash store))
+       (aif (gethash word it)
+            it
+            0)
        0))
 
 (defun count-category (store category)
-  (loop for elem in (learned-store-lst store)
-     when (equal (word-category-count-category elem) category)
-     sum (word-category-count-count elem)))
+  (aif (gethash category (learned-store-hash store))
+       (let ((sum 0))
+         (maphash #'(lambda (k v)
+                      (declare (ignore k))
+                      (incf sum v))
+                  it)
+         sum)
+       0))
 
 (defun count-word-kind (store)
   (learned-store-num-word-kind store))
