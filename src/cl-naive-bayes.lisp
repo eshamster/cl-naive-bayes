@@ -4,32 +4,37 @@
   (:import-from :anaphora
                 :aif
                 :sif
+                :slet
                 :it))
 (in-package :cl-naive-bayes)
 
 (cl-annot:enable-annot-syntax)
 
 @export
+(defstruct category-data
+  (count 0)
+  (word-count (make-hash-table :test #'equal)))
+
+@export
 (defstruct learned-store
-  (word-category-count (make-hash-table :test #'equal))
-  (category-count (make-hash-table :test #'equal))
+  (category-data (make-hash-table :test #'equal))
   (num-document 0)
   (num-word-kind 0))
 
 (defun count-word-in-category (store word category)
-  (aif (gethash category (learned-store-word-category-count store))
-       (aif (gethash word it)
+  (aif (gethash category (learned-store-category-data store))
+       (aif (gethash word (category-data-word-count it))
             it
             0)
        0))
 
 (defun count-category (store category)
-  (aif (gethash category (learned-store-word-category-count store))
+  (aif (gethash category (learned-store-category-data store))
        (let ((sum 0))
          (maphash #'(lambda (k v)
                       (declare (ignore k))
                       (incf sum v))
-                  it)
+                  (category-data-word-count it))
          sum)
        0))
 
@@ -59,28 +64,28 @@
                              (* (calc-logged-prior-prob store category)
                                 (calc-logged-likelihood store word-lst category)))
                        lst))
-             (learned-store-category-count store))
+             (learned-store-category-data store))
     (sort lst #'> :key #'cdr)))
 
 (defun contains-word (store word)
-  (maphash #'(lambda (k word-hash)
+  (maphash #'(lambda (k cat-data)
                (declare (ignore k))
-               (aif (gethash word word-hash)
+               (aif (gethash word (category-data-word-count cat-data))
                     (return-from contains-word it)))
-           (learned-store-word-category-count store))
+           (learned-store-category-data store))
   nil)
 
 @export
 (defun learn-a-document (store word-lst category)
-  (with-slots (word-category-count category-count num-document num-word-kind) store
+  (with-slots (category-data num-document num-word-kind) store
     (incf num-document)
-    (sif (gethash category category-count)
-         (incf it)
-         (progn (setf it 1)
-                (setf (gethash category word-category-count) (make-hash-table :test #'equal))))
-    (dolist (word word-lst)
-      (if (not (contains-word store word))
-          (incf num-word-kind))
-      (sif (gethash word (gethash category word-category-count))
-           (incf it)
-           (setf it 1)))))
+    (slet (gethash category category-data)
+      (if (null it)
+          (setf it (make-category-data :count 1)))
+      (incf (category-data-count it))
+      (dolist (word word-lst)
+        (if (not (contains-word store word))
+            (incf num-word-kind))
+        (sif (gethash word (gethash category (category-data-word-count it)))
+             (incf it)
+             (setf it 1))))))
