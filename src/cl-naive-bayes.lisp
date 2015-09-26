@@ -53,8 +53,8 @@
     (- logged-numer (log denomi))))
 
 (defun calc-logged-prior-prob (store category)
-  (with-slots (category-count num-document) store
-    (log (/ (gethash category category-count)
+  (with-slots (category-data num-document) store
+    (log (/ (category-data-count (gethash category category-data))
             num-document))))
 
 @export
@@ -63,7 +63,7 @@
     (maphash #'(lambda (category v)
                  (declare (ignore v))
                  (push (cons category
-                             (* (calc-logged-prior-prob store category)
+                             (+ (calc-logged-prior-prob store category)
                                 (calc-logged-likelihood store word-lst category)))
                        lst))
              (learned-store-category-data store))

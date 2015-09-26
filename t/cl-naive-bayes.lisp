@@ -19,7 +19,9 @@
         (make-test-document :category "A"
                             :word-lst '("a3" "a4" "a5" "a6"))
         (make-test-document :category "B"
-                            :word-lst '("b1" "b2" "b3" "b4" "ab"))))
+                            :word-lst '("b1" "b2" "b3" "b4" "ab"))
+        (make-test-document :category "C"
+                            :word-lst '("c1" "c2" "c3"))))
 
 (defun add-a-test-document (store index)
   (let ((doc (nth index *documents*)))
@@ -73,5 +75,18 @@
       (is-count-word store "A" "b1" 0)
       (is-count-word store "B" "b1" 1)
       (is-count-word store "B" "ab" 1))))
+
+(defun is-category-sort (store word-lst expected)
+  (is (mapcar #'car (sort-category-by-prob store word-lst)) expected :test #'equalp))
+
+(subtest "Test classifying"
+  (let ((store (make-learned-store)))
+    (dotimes (i 4)
+      (add-a-test-document store i))
+    (is-category-sort store '("ab" "a1" "a2") '("A" "B" "C"))
+    (is-category-sort store '("ab" "a1" "a2" "none") '("A" "B" "C"))
+    (is-category-sort store '("ab" "a1" "a1" "none") '("A" "B" "C"))
+    (is-category-sort store '("ab" "b1" "b2") '("B" "A" "C"))
+    (is-category-sort store '("c1" "c2" "b1") '("C" "B" "A"))))
 
 (finalize)
