@@ -5,7 +5,9 @@
                 :aif
                 :sif
                 :slet
-                :it))
+                :it)
+  (:export :make-category-data
+           :make-learned-store))
 (in-package :cl-naive-bayes)
 
 (cl-annot:enable-annot-syntax)
@@ -75,17 +77,22 @@
            (learned-store-category-data store))
   nil)
 
+(defun 1+plus (x)
+  (if (null x)
+      1
+      (1+ x)))
+
+(define-modify-macro incf-plus () 1+plus)
+
 @export
 (defun learn-a-document (store word-lst category)
   (with-slots (category-data num-document num-word-kind) store
     (incf num-document)
     (slet (gethash category category-data)
       (if (null it)
-          (setf it (make-category-data :count 1)))
+          (setf it (make-category-data)))
       (incf (category-data-count it))
       (dolist (word word-lst)
         (if (not (contains-word store word))
             (incf num-word-kind))
-        (sif (gethash word (gethash category (category-data-word-count it)))
-             (incf it)
-             (setf it 1))))))
+        (incf-plus (gethash word (category-data-word-count it)))))))
