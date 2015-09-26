@@ -69,6 +69,17 @@
              (learned-store-category-data store))
     (sort lst #'> :key #'cdr)))
 
+@export
+(defun sort-category-with-post-prob (store word-lst)
+  (let ((sorted (sort-category-by-prob store word-lst))
+        (sum-likelihood 0))
+    (dolist (elem sorted)
+      (incf sum-likelihood (exp (cdr elem))))
+    (mapcar #'(lambda (elem)
+                (cons (car elem)
+                      (/ (exp (cdr elem)) sum-likelihood)))
+            sorted)))
+
 (defun contains-word (store word)
   (maphash #'(lambda (k cat-data)
                (declare (ignore k))
