@@ -15,6 +15,7 @@
 @export
 (defstruct category-data
   (count 0)
+  (sum-word-count 0)
   (word-count (make-hash-table :test #'equal)))
 
 @export
@@ -32,12 +33,7 @@
 
 (defun count-category (store category)
   (aif (gethash category (learned-store-category-data store))
-       (let ((sum 0))
-         (maphash #'(lambda (k v)
-                      (declare (ignore k))
-                      (incf sum v))
-                  (category-data-word-count it))
-         sum)
+       (category-data-sum-word-count it)
        0))
 
 (defun count-word-kind (store)
@@ -104,6 +100,7 @@
           (setf it (make-category-data)))
       (incf (category-data-count it))
       (dolist (word word-lst)
+        (incf (category-data-sum-word-count it))
         (if (not (contains-word store word))
             (incf num-word-kind))
         (incf-plus (gethash word (category-data-word-count it)))))))
