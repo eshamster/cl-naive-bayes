@@ -43,10 +43,10 @@
 (defun calc-logged-likelihood (store word-lst category)
   (let ((denomi (max (+ (count-category store category)
                         (count-word-kind store))
-                     1))
-        (logged-numer (loop for word in word-lst
-                         sum (log (1+ (count-word-in-category store word category))))))
-    (- logged-numer (log denomi))))
+                     1)))
+    (loop for word in word-lst
+       sum (log (/ (1+ (count-word-in-category store word category))
+                   denomi)))))
 
 (defun calc-logged-prior-prob (store category)
   (with-slots (category-data num-document) store
@@ -71,6 +71,8 @@
         (sum-likelihood 0))
     (dolist (elem sorted)
       (incf sum-likelihood (exp (cdr elem))))
+    (if (=  sum-likelihood 0)
+        (return-from sort-category-with-post-prob sorted))
     (mapcar #'(lambda (elem)
                 (cons (car elem)
                       (/ (exp (cdr elem)) sum-likelihood)))
