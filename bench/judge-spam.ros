@@ -1,0 +1,80 @@
+#!/bin/sh
+#|-*- mode:lisp -*-|#
+#|
+exec ros -Q -- $0 "$@"
+|#
+
+(defparameter *load-list* '(:cl-fad :cl-naive-bayes :trivial-download :trivial-shell :cl-ppcre))
+
+(eval-when (:execute)
+  (dolist (target *load-list*)
+    (ql:quickload target)))
+
+
+(defparameter *base_url* "http://spamassassin.apache.org/publiccorpus")
+(defparameter *date* "20021010")
+(defparameter *ham* "easy_ham")
+(defparameter *spam* "spam")
+
+(defparameter *work-dir* "./work")
+(defparameter *ham-dir* (format nil "~A/~A" *work-dir* *ham*))
+(defparameter *spam-dir* (format nil "~A/~A" *work-dir* *spam*))
+
+(defun prepare-files ()
+  (ensure-directories-exist *work-dir*)
+  (if (cl-fad:directory-exists-p (format nil "~A/~A/" *work-dir* *ham*))
+      (return-from prepare-files))
+  (dolist (target (list *ham* *spam*))
+    (let* ((file-name (format nil "~A_~A.tar.bz2" *date* target))
+           (url (format nil "~A/~A" *base_url* file-name)))
+      (trivial-download:download url (format nil "~A/~A" *work-dir* file-name))
+      (trivial-shell:shell-command
+       (format nil "tar jxf ~A/~A -C ~A/" *work-dir* file-name *work-dir*))
+      (trivial-shell:shell-command
+       (format nil "(cd ~A/~A ; for file in `ls` ; do nkf --overwrite -w ${file} ; nkf -g ${file} | egrep 'UTF|ASCII' >& /dev/null ; if [ $? -ne 0 ]; then rm ${file} ; fi ; done)" *work-dir* target )))))
+
+; very naive!!
+(defun tokenize-mail (file)
+  (with-open-file (in file :direction :input)
+    (let (line word-lst)
+      (loop while (setq line (read-line in nil)) do
+           (setf word-lst (append (ppcre:split "\\s+" line) word-lst)))
+      word-lst)))
+
+(defun learn-a-file (store category file)
+  (let ((word-lst (tokenize-mail file)))
+    (cl-naive-bayes:learn-a-document store word-lst category)))
+
+(defun learn-a-directory (store category dir ratio)
+  (let ((file-lst (fad:list-directory dir)))
+    (dotimes (i (floor (* ratio (length file-lst))))
+      (learn-a-file store category (nth i file-lst)))))
+
+(defun test-a-directory (expected store directory offset-ratio ratio)
+  (let* ((files (fad:list-directory directory))
+         (num-all (length files))
+         (count-all 0)
+         (count-correct 0))
+    (loop for i
+       from (floor (* num-all offset-ratio))
+       below (min num-all (floor (* num-all (+ offset-ratio ratio)))) do
+         (let ((word-lst (tokenize-mail (nth i files))))
+           (incf count-all)
+           (if (equal (caar (cl-naive-bayes:sort-category-with-post-prob store word-lst))
+                      expected)
+               (incf count-correct))))
+    (format t "~D/~D(~F)~%" count-correct count-all (/ count-correct count-all))))
+
+(defun main (&rest argv)
+  (declare (ignorable argv))
+  (prepare-files)
+  (let* ((store (cl-naive-bayes:make-learned-store))
+         (learn-ratio 0.5)
+         (test-ratio 0.5)
+         (test-offset-ratio (- 1 test-ratio)))
+    (learn-a-directory store "normal" *ham-dir* learn-ratio)
+    (learn-a-directory store "spam" *spam-dir* learn-ratio)
+    (test-a-directory "normal" store *ham-dir*
+                      test-offset-ratio test-ratio)
+    (test-a-directory "spam" store *spam-dir*
+                      test-offset-ratio test-ratio)))
