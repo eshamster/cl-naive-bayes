@@ -15,6 +15,7 @@
 @export
 (defstruct category-data
   (count 0)
+  (sum-word-count 0)
   (word-count (make-hash-table :test #'equal)))
 
 @export
@@ -32,12 +33,7 @@
 
 (defun count-category (store category)
   (aif (gethash category (learned-store-category-data store))
-       (let ((sum 0))
-         (maphash #'(lambda (k v)
-                      (declare (ignore k))
-                      (incf sum v))
-                  (category-data-word-count it))
-         sum)
+       (category-data-sum-word-count it)
        0))
 
 (defun count-word-kind (store)
@@ -47,10 +43,10 @@
 (defun calc-logged-likelihood (store word-lst category)
   (let ((denomi (max (+ (count-category store category)
                         (count-word-kind store))
-                     1))
-        (logged-numer (loop for word in word-lst
-                         sum (log (1+ (count-word-in-category store word category))))))
-    (- logged-numer (log denomi))))
+                     1)))
+    (loop for word in word-lst
+       sum (log (/ (1+ (count-word-in-category store word category))
+                   denomi)))))
 
 (defun calc-logged-prior-prob (store category)
   (with-slots (category-data num-document) store
@@ -75,6 +71,8 @@
         (sum-likelihood 0))
     (dolist (elem sorted)
       (incf sum-likelihood (exp (cdr elem))))
+    (if (=  sum-likelihood 0)
+        (return-from sort-category-with-post-prob sorted))
     (mapcar #'(lambda (elem)
                 (cons (car elem)
                       (/ (exp (cdr elem)) sum-likelihood)))
@@ -104,6 +102,7 @@
           (setf it (make-category-data)))
       (incf (category-data-count it))
       (dolist (word word-lst)
+        (incf (category-data-sum-word-count it))
         (if (not (contains-word store word))
             (incf num-word-kind))
         (incf-plus (gethash word (category-data-word-count it)))))))
