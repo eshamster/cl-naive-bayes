@@ -47,6 +47,7 @@ exec ros -Q -- $0 "$@"
 
 (defun learn-a-directory (store category dir ratio)
   (let ((file-lst (fad:list-directory dir)))
+    (format t "Learn ~A mails: ~D~%" category (length file-lst))
     (dotimes (i (floor (* ratio (length file-lst))))
       (learn-a-file store category (nth i file-lst)))))
 
@@ -63,7 +64,7 @@ exec ros -Q -- $0 "$@"
            (if (equal (caar (cl-naive-bayes:sort-category-with-post-prob store word-lst))
                       expected)
                (incf count-correct))))
-    (format t "~D/~D(~F)~%" count-correct count-all (/ count-correct count-all))))
+    (format t "~A: ~D/~D (~F)~%" expected count-correct count-all (/ count-correct count-all))))
 
 (defun main (&rest argv)
   (declare (ignorable argv))
@@ -74,7 +75,10 @@ exec ros -Q -- $0 "$@"
          (test-offset-ratio (- 1 test-ratio)))
     (learn-a-directory store "normal" *ham-dir* learn-ratio)
     (learn-a-directory store "spam" *spam-dir* learn-ratio)
-    (test-a-directory "normal" store *ham-dir*
-                      test-offset-ratio test-ratio)
-    (test-a-directory "spam" store *spam-dir*
-                      test-offset-ratio test-ratio)))
+    (format t "----- test the identification rate and measure peformance -----~%")
+    (time (progn
+            (test-a-directory "normal" store *ham-dir*
+                              test-offset-ratio test-ratio)
+            (test-a-directory "spam" store *spam-dir*
+                              test-offset-ratio test-ratio)
+            (format t "------~%")))))
