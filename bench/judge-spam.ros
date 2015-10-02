@@ -4,11 +4,12 @@
 exec ros -Q -- $0 "$@"
 |#
 
-(defparameter *load-list* '(:cl-fad :cl-naive-bayes :trivial-download :trivial-shell :cl-ppcre))
+(defparameter *load-list* '(:cl-fad :cl-naive-bayes :trivial-download :trivial-shell :cl-ppcre :anaphora))
 
 (eval-when (:execute)
   (dolist (target *load-list*)
-    (ql:quickload target)))
+    (ql:quickload target))
+  (use-package :anaphora))
 
 
 (defparameter *base_url* "http://spamassassin.apache.org/publiccorpus")
@@ -70,8 +71,8 @@ exec ros -Q -- $0 "$@"
   (declare (ignorable argv))
   (prepare-files)
   (let* ((store (cl-naive-bayes:make-learned-store))
-         (learn-ratio 0.5)
-         (test-ratio 0.5)
+         (learn-ratio (aif (car argv) (read-from-string it) 0.5))
+         (test-ratio (aif (cadr argv) (read-from-string it) 0.5))
          (test-offset-ratio (- 1 test-ratio)))
     (learn-a-directory store "normal" *ham-dir* learn-ratio)
     (learn-a-directory store "spam" *spam-dir* learn-ratio)
