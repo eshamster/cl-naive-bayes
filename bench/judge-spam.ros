@@ -55,17 +55,23 @@ exec ros -Q -- $0 "$@"
 (defun test-a-directory (expected store directory offset-ratio ratio)
   (let* ((files (fad:list-directory directory))
          (num-all (length files))
-         (count-all 0)
+         (count-used 0)
          (count-correct 0))
     (loop for i
        from (floor (* num-all offset-ratio))
        below (min num-all (floor (* num-all (+ offset-ratio ratio)))) do
          (let ((word-lst (tokenize-mail (nth i files))))
-           (incf count-all)
+           (incf count-used)
            (if (equal (caar (cl-naive-bayes:sort-category-with-post-prob store word-lst))
                       expected)
                (incf count-correct))))
-    (format t "~A: ~D/~D (~F)~%" expected count-correct count-all (/ count-correct count-all))))
+    (format t "~A: ~D/~D (~F)~%" expected count-correct count-used (/ count-correct count-used))))
+
+(defmacro with-timer (title &body body)
+  `(progn
+     (format t "----- ~A -----~%" ,title)
+     (time (progn ,@body
+                  (format t "------~%")))))
 
 (defun main (&rest argv)
   (declare (ignorable argv))
@@ -74,12 +80,11 @@ exec ros -Q -- $0 "$@"
          (learn-ratio (aif (car argv) (read-from-string it) 0.5))
          (test-ratio (aif (cadr argv) (read-from-string it) 0.5))
          (test-offset-ratio (- 1 test-ratio)))
-    (learn-a-directory store "normal" *ham-dir* learn-ratio)
-    (learn-a-directory store "spam" *spam-dir* learn-ratio)
-    (format t "----- test the identification rate and measure peformance -----~%")
-    (time (progn
-            (test-a-directory "normal" store *ham-dir*
-                              test-offset-ratio test-ratio)
-            (test-a-directory "spam" store *spam-dir*
-                              test-offset-ratio test-ratio)
-            (format t "------~%")))))
+    (with-timer "Learn"
+      (learn-a-directory store "normal" *ham-dir* learn-ratio)
+      (learn-a-directory store "spam" *spam-dir* learn-ratio))
+    (with-timer "Test the identification rate"
+      (test-a-directory "normal" store *ham-dir*
+                        test-offset-ratio test-ratio)
+      (test-a-directory "spam" store *spam-dir*
+                        test-offset-ratio test-ratio))))
