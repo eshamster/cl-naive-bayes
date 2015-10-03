@@ -4,16 +4,13 @@
 exec ros -Q -- $0 "$@"
 |#
 
-(defparameter *load-list* '(:cl-fad :cl-naive-bayes :trivial-download :trivial-shell :cl-ppcre :anaphora))
+(defparameter *load-list* '(:cl-fad :cl-naive-bayes :trivial-shell :cl-ppcre :anaphora))
 
 (eval-when (:execute)
   (dolist (target *load-list*)
     (ql:quickload target))
   (use-package :anaphora))
 
-
-(defparameter *base_url* "http://spamassassin.apache.org/publiccorpus")
-(defparameter *date* "20021010")
 (defparameter *ham* "easy_ham")
 (defparameter *spam* "spam")
 
@@ -21,18 +18,15 @@ exec ros -Q -- $0 "$@"
 (defparameter *ham-dir* (format nil "~A/~A" *work-dir* *ham*))
 (defparameter *spam-dir* (format nil "~A/~A" *work-dir* *spam*))
 
-(defun prepare-files ()
-  (ensure-directories-exist *work-dir*)
-  (if (cl-fad:directory-exists-p (format nil "~A/~A/" *work-dir* *ham*))
-      (return-from prepare-files))
-  (dolist (target (list *ham* *spam*))
-    (let* ((file-name (format nil "~A_~A.tar.bz2" *date* target))
-           (url (format nil "~A/~A" *base_url* file-name)))
-      (trivial-download:download url (format nil "~A/~A" *work-dir* file-name))
-      (trivial-shell:shell-command
-       (format nil "tar jxf ~A/~A -C ~A/" *work-dir* file-name *work-dir*))
-      (trivial-shell:shell-command
-       (format nil "(cd ~A/~A ; for file in `ls` ; do nkf --overwrite -w ${file} ; nkf -g ${file} | egrep 'UTF|ASCII' >& /dev/null ; if [ $? -ne 0 ]; then rm ${file} ; fi ; done)" *work-dir* target )))))
+(defun ensure-env ()
+  (labels ((exists-dir ()
+             (cl-fad:directory-exists-p (format nil "~A/~A/" *work-dir* *ham*))))
+    (if (exists-dir)
+     (return-from ensure-env t))
+    (format t "Please wait for downloading and processing test data...~%")
+    (trivial-shell:shell-command
+     (format nil "./prepare.sh ~A ~A ~A" *work-dir* *ham* *spam*))
+    (exists-dir)))
 
 ; very naive!!
 (defun tokenize-mail (file)
@@ -75,7 +69,9 @@ exec ros -Q -- $0 "$@"
 
 (defun main (&rest argv)
   (declare (ignorable argv))
-  (prepare-files)
+  (unless (ensure-env)
+    (format t "Failed to prepare the envinronment~%")
+    (return-from main nil))
   (let* ((store (cl-naive-bayes:make-learned-store))
          (learn-ratio (aif (car argv) (read-from-string it) 0.5))
          (test-ratio (aif (cadr argv) (read-from-string it) 0.5))
