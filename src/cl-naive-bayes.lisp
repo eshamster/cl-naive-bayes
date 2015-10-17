@@ -1,5 +1,6 @@
 (in-package :cl-user)
 (defpackage cl-naive-bayes
+  (:nicknames :nbayes)
   (:use :cl)
   (:import-from :anaphora
                 :aif
