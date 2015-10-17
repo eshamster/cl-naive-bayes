@@ -15,7 +15,7 @@
 (defsystem cl-naive-bayes
   :version "0.1"
   :author "eshamster"
-  :license ""
+  :license "LLGPL"
   :depends-on (:cl-annot
                :anaphora)
   :components ((:module "src"

@@ -77,7 +77,7 @@
       (is-count-word store "B" "ab" 1))))
 
 (defun is-category-sort (store word-lst expected)
-  (is (mapcar #'car (sort-category-by-prob store word-lst)) expected :test #'equalp))
+  (is (sort-category-by-prob store word-lst) expected :test #'equalp))
 
 (subtest "Test classifying"
   (let ((store (make-learned-store)))
