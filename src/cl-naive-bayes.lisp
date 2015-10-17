@@ -54,8 +54,7 @@
     (log (/ (category-data-count (gethash category category-data))
             num-document))))
 
-@export
-(defun sort-category-by-prob (store word-lst)
+(defun sort-category-with-logged-prob (store word-lst)
   (let (lst)
     (maphash #'(lambda (category v)
                  (declare (ignore v))
@@ -67,8 +66,12 @@
     (sort lst #'> :key #'cdr)))
 
 @export
+(defun sort-category-by-prob (store word-lst)
+  (mapcar #'car (sort-category-with-logged-prob store word-lst)))
+
+@export
 (defun sort-category-with-post-prob (store word-lst)
-  (let ((sorted (sort-category-by-prob store word-lst))
+  (let ((sorted (sort-category-with-logged-prob store word-lst))
         (sum-post-prob-no-norm 0)
         (first-log nil))
     (if (null sorted) (return-from sort-category-with-post-prob nil))
