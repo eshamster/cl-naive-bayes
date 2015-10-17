@@ -21,19 +21,19 @@
 
 @export
 (defstruct learned-store
-  (category-data (make-hash-table :test #'equal))
+  (category-data-hash (make-hash-table :test #'equal))
   (num-document 0)
   (num-word-kind 0))
 
 (defun count-word-in-category (store word category)
-  (aif (gethash category (learned-store-category-data store))
+  (aif (gethash category (learned-store-category-data-hash store))
        (aif (gethash word (category-data-word-count it))
             it
             0)
        0))
 
 (defun count-category (store category)
-  (aif (gethash category (learned-store-category-data store))
+  (aif (gethash category (learned-store-category-data-hash store))
        (category-data-sum-word-count it)
        0))
 
@@ -50,8 +50,8 @@
                    denomi)))))
 
 (defun calc-logged-prior-prob (store category)
-  (with-slots (category-data num-document) store
-    (log (/ (category-data-count (gethash category category-data))
+  (with-slots (category-data-hash num-document) store
+    (log (/ (category-data-count (gethash category category-data-hash))
             num-document))))
 
 (defun sort-category-with-logged-prob (store word-lst)
@@ -62,7 +62,7 @@
                              (+ (calc-logged-prior-prob store category)
                                 (calc-logged-likelihood store word-lst category)))
                        lst))
-             (learned-store-category-data store))
+             (learned-store-category-data-hash store))
     (sort lst #'> :key #'cdr)))
 
 @export
@@ -91,7 +91,7 @@
                (declare (ignore k))
                (aif (gethash word (category-data-word-count cat-data))
                     (return-from contains-word it)))
-           (learned-store-category-data store))
+           (learned-store-category-data-hash store))
   nil)
 
 (defun 1+plus (x)
@@ -103,9 +103,9 @@
 
 @export
 (defun learn-a-document (store word-lst category)
-  (with-slots (category-data num-document num-word-kind) store
+  (with-slots (category-data-hash num-document num-word-kind) store
     (incf num-document)
-    (slet (gethash category category-data)
+    (slet (gethash category category-data-hash)
       (if (null it)
           (setf it (make-category-data)))
       (incf (category-data-count it))

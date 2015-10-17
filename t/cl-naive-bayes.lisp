@@ -38,7 +38,7 @@
 (defun is-count-category (store category expected)
   (is (cl-naive-bayes::category-data-count
        (gethash category
-                (cl-naive-bayes::learned-store-category-data store)))
+                (cl-naive-bayes::learned-store-category-data-hash store)))
       expected))
 
 (defun is-count-word (store category word expected)
